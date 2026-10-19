@@ -1,0 +1,17 @@
+.env
+.venv/
+.matplotlib-local/
+.dvc/site-cache/
+.dvc/cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+artifacts/*
+!artifacts/.gitkeep
+tests/test-results.xml
+.poster-runtime-logs/
+poster_screenshots/chrome-*/
+.secrets/
+*.pem

@@ -1,0 +1,6 @@
+[core]
+    remote = myremote
+[cache]
+    dir = cache
+[remote "myremote"]
+    url = s3://loan-approval-mlops-049681811107-ap-south-1/dvcstore

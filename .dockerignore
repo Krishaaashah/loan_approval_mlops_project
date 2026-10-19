@@ -1,0 +1,13 @@
+.git
+.venv
+.dvc/cache
+.dvc/site-cache
+.env
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+artifacts/mlruns
+artifacts/train.csv
+artifacts/test.csv
+tests/test-results.xml

@@ -1,0 +1,32 @@
+stages:
+  prepare:
+    cmd: python -m prediction_model.prepare_data
+    deps:
+      - prediction_model/datasets/train.csv
+      - prediction_model/config/config.py
+      - prediction_model/prepare_data.py
+    outs:
+      - artifacts/train.csv
+      - artifacts/test.csv
+
+  train:
+    cmd: python -m prediction_model.training_pipeline
+    deps:
+      - artifacts/train.csv
+      - artifacts/test.csv
+      - prediction_model/config/config.py
+      - prediction_model/processing/preprocessing.py
+      - prediction_model/training_pipeline.py
+    outs:
+      - artifacts/model.joblib
+      - artifacts/best_params.json
+
+  evaluate:
+    cmd: python -m prediction_model.evaluate
+    deps:
+      - artifacts/model.joblib
+      - artifacts/test.csv
+      - prediction_model/evaluate.py
+    metrics:
+      - artifacts/metrics.json:
+          cache: false

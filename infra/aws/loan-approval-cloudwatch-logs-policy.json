@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteLoanApprovalContainerLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-south-1:049681811107:log-group:/mlops/loan-approval",
+        "arn:aws:logs:ap-south-1:049681811107:log-group:/mlops/loan-approval:*",
+        "arn:aws:logs:ap-south-1:049681811107:log-group:/mlops/loan-approval:log-stream:loan-api"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops
+  labels:
+    app: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlops
+  template:
+    metadata:
+      labels:
+        app: mlops
+    spec:
+      containers:
+        - name: mlops
+          # Replace IMAGE_TAG with an immutable ECR tag or digest during release.
+          image: 049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:<image-tag>
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8005
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8005
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 30
+            periodSeconds: 20

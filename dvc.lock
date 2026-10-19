@@ -1,0 +1,26 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m prediction_model.prepare_data
+    deps:
+    - path: prediction_model/config/config.py
+      hash: md5
+      md5: 1a85bb3e67cc77d6ab774cbf5a61ab24
+      size: 2364
+    - path: prediction_model/datasets/train.csv
+      hash: md5
+      md5: 730e100e86210f0b741fa7f5d5a38678
+      size: 16654
+    - path: prediction_model/prepare_data.py
+      hash: md5
+      md5: 0e99e142197e399cbc3817c2f0d8672b
+      size: 1114
+    outs:
+    - path: artifacts/test.csv
+      hash: md5
+      md5: 84068e80be44b3208c5649fc5a7e0e86
+      size: 3715
+    - path: artifacts/train.csv
+      hash: md5
+      md5: 4fb8bc7c6aa729c9a32cfce359201ca4
+      size: 14261
