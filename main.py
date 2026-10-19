@@ -88,25 +88,99 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Loan Prediction API</title>
         <style>
-          body { font-family: system-ui, sans-serif; max-width: 760px; margin: 48px auto; padding: 0 20px; color: #17324d; }
-          h1 { margin-bottom: 8px; }
+          :root { color-scheme: light; font-family: system-ui, sans-serif; }
+          body { margin: 0; background: #f3f7fa; color: #17324d; }
+          main { max-width: 980px; margin: 36px auto; padding: 0 20px 48px; }
+          header { margin-bottom: 22px; }
+          h1 { margin: 0 0 8px; font-size: 32px; }
           p { color: #52677a; }
-          ul { line-height: 2; padding-left: 24px; }
-          a { color: #1769aa; }
+          .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+          section, aside { background: #fff; border: 1px solid #d9e4eb; border-radius: 10px; padding: 24px; box-shadow: 0 8px 24px rgba(23, 50, 77, .06); }
+          h2 { margin-top: 0; font-size: 21px; }
+          .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+          label { display: grid; gap: 6px; font-size: 14px; font-weight: 650; }
+          input, select { width: 100%; box-sizing: border-box; padding: 10px 11px; border: 1px solid #b9cad6; border-radius: 6px; background: #fff; color: #17324d; font: inherit; }
+          input:focus, select:focus { outline: 3px solid #cce8fb; border-color: #1769aa; }
+          button { margin-top: 20px; width: 100%; padding: 12px 16px; border: 0; border-radius: 6px; background: #1769aa; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+          button:hover { background: #125689; }
+          button:disabled { opacity: .6; cursor: wait; }
+          #result { min-height: 24px; margin: 18px 0 0; padding: 12px; border-radius: 6px; font-weight: 700; }
+          #result.approved { background: #e5f6ed; color: #146c3a; }
+          #result.rejected { background: #fdeaea; color: #9a2525; }
+          #result.error { background: #fff4df; color: #805b12; }
+          aside { line-height: 1.7; }
+          aside a { color: #1769aa; }
           code { background: #eef4f8; padding: 2px 5px; border-radius: 4px; }
+          @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .fields { grid-template-columns: 1fr; } }
         </style>
       </head>
       <body>
-        <h1>Loan Prediction API</h1>
-        <p>The service is running. Use one of the links below to inspect or call it.</p>
-        <ul>
-          <li><a href="/docs">Swagger API documentation</a></li>
-          <li><a href="/redoc">ReDoc API documentation</a></li>
-          <li><a href="/health">Health check</a></li>
-          <li><a href="/ready">Model readiness check</a></li>
-          <li><a href="/metrics">Prometheus metrics</a></li>
-        </ul>
-        <p>Prediction requests use <code>POST /prediction_api</code>.</p>
+        <main>
+          <header>
+            <h1>Loan Approval Prediction</h1>
+            <p>Enter applicant details to receive a prediction from the deployed XGBoost model.</p>
+          </header>
+          <div class="layout">
+            <section>
+              <h2>Applicant Details</h2>
+              <form id="prediction-form">
+                <div class="fields">
+                  <label>Gender<select name="Gender"><option>Male</option><option>Female</option></select></label>
+                  <label>Married<select name="Married"><option>Yes</option><option>No</option></select></label>
+                  <label>Dependents<select name="Dependents"><option>0</option><option>1</option><option>2</option><option>3+</option></select></label>
+                  <label>Education<select name="Education"><option>Graduate</option><option>Not Graduate</option></select></label>
+                  <label>Self Employed<select name="Self_Employed"><option>No</option><option>Yes</option></select></label>
+                  <label>Applicant Income<input name="ApplicantIncome" type="number" min="0" value="5000" required></label>
+                  <label>Coapplicant Income<input name="CoapplicantIncome" type="number" min="0" value="1500" required></label>
+                  <label>Loan Amount<input name="LoanAmount" type="number" min="0" value="150" required></label>
+                  <label>Loan Term (months)<input name="Loan_Amount_Term" type="number" min="1" value="360" required></label>
+                  <label>Credit History<select name="Credit_History"><option value="1">1 - Meets requirements</option><option value="0">0 - Does not meet requirements</option></select></label>
+                  <label>Property Area<select name="Property_Area"><option>Urban</option><option>Semiurban</option><option>Rural</option></select></label>
+                </div>
+                <button id="submit-button" type="submit">Predict Loan Approval</button>
+                <div id="result" role="status" aria-live="polite"></div>
+              </form>
+            </section>
+            <aside>
+              <h2>Service Links</h2>
+              <p><a href="/docs">Swagger API documentation</a></p>
+              <p><a href="/health">Health check</a></p>
+              <p><a href="/ready">Model readiness</a></p>
+              <p><a href="/metrics">Prometheus metrics</a></p>
+              <p>API route: <code>POST /prediction_api</code></p>
+            </aside>
+          </div>
+        </main>
+        <script>
+          const form = document.getElementById('prediction-form');
+          const result = document.getElementById('result');
+          const button = document.getElementById('submit-button');
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            button.disabled = true;
+            result.className = '';
+            result.textContent = 'Calculating prediction...';
+            const values = Object.fromEntries(new FormData(form).entries());
+            ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
+              .forEach((key) => { values[key] = Number(values[key]); });
+            try {
+              const response = await fetch('/prediction_api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values)
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.detail || 'Prediction request failed');
+              result.textContent = `Prediction: ${payload.status}`;
+              result.className = payload.status === 'Approved' ? 'approved' : 'rejected';
+            } catch (error) {
+              result.textContent = `Error: ${error.message}`;
+              result.className = 'error';
+            } finally {
+              button.disabled = false;
+            }
+          });
+        </script>
       </body>
     </html>
     """
