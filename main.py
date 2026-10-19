@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 import numpy as np
@@ -78,9 +78,38 @@ class LoanPrediction(BaseModel):
 
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def index():
-    return {"message":"Welcome to the MLOps Loan Prediction app" }
+    return """
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Loan Prediction API</title>
+        <style>
+          body { font-family: system-ui, sans-serif; max-width: 760px; margin: 48px auto; padding: 0 20px; color: #17324d; }
+          h1 { margin-bottom: 8px; }
+          p { color: #52677a; }
+          ul { line-height: 2; padding-left: 24px; }
+          a { color: #1769aa; }
+          code { background: #eef4f8; padding: 2px 5px; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>Loan Prediction API</h1>
+        <p>The service is running. Use one of the links below to inspect or call it.</p>
+        <ul>
+          <li><a href="/docs">Swagger API documentation</a></li>
+          <li><a href="/redoc">ReDoc API documentation</a></li>
+          <li><a href="/health">Health check</a></li>
+          <li><a href="/ready">Model readiness check</a></li>
+          <li><a href="/metrics">Prometheus metrics</a></li>
+        </ul>
+        <p>Prediction requests use <code>POST /prediction_api</code>.</p>
+      </body>
+    </html>
+    """
 
 
 @app.get("/health")
