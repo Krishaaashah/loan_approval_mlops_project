@@ -13,8 +13,8 @@ controls.
 
 A model is not enough by itself. The project must also make data changes traceable,
 training repeatable, experiments comparable, deployment reproducible, and production
-behavior observable. This repository demonstrates those concerns locally first and
-leaves AWS resource creation for the cloud phase.
+behavior observable. This repository demonstrates those concerns locally and on a
+small AWS deployment.
 
 ## Current Local Flow
 
@@ -58,5 +58,8 @@ DVC/S3 dataset -> DVC pipeline -> MLflow experiment and selected model
                              client prediction request
 ```
 
-The cloud phase will add IAM roles, ECR publishing, EC2 deployment, CloudWatch or
-Prometheus/Grafana monitoring, secrets management, rollback, and deployment evidence.
+The implemented cloud flow adds IAM roles, ECR publishing, SSM-based EC2 deployment,
+CloudWatch logging, secrets isolation through GitHub OIDC, immutable releases,
+rollback guidance, and submission evidence. Prometheus-compatible metrics and the
+local Evidently workflow remain available as monitoring interfaces; a full Grafana
+dashboard is optional rather than a claimed deployed component.

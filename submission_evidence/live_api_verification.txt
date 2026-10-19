@@ -1,0 +1,6 @@
+SSM verification command: Success
+Image: 049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-3f320f4974cb91422e30447b83beb20e90e23522
+Health: {"status":"ok"}
+Readiness: {"status":"ready"}
+Metrics: Prometheus output returned python_gc_objects_collected_total and related process metrics.
+CloudWatch log group: /mlops/loan-approval

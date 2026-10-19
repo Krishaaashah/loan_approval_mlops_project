@@ -10,18 +10,22 @@ The current target region is `ap-south-1`.
 - ECR repository: `049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops`.
 - CloudWatch log group: `/mlops/loan-approval`, retained for 7 days.
 - Security group: `sg-0b199416088c16b23`; ports 22 and 80 are restricted to the current client IP.
-- Current image: `release-local-20261019-v2`, digest `sha256:a78b848f242dbd4648c2683e96c69d0c5870ad3a25f5455d62410f1944aafa68`.
+- Current image: `release-3f320f4974cb91422e30447b83beb20e90e23522`, digest `sha256:bf49b38dc4f113f8716ba66278baa1e8c37f58e8fcc6c3eac2a966a5379ddf43`.
 - ECR tags are immutable and the lifecycle policy retains at most three `release-*` images.
-- The manual GitHub release workflow expects the repository secret `AWS_ROLE_TO_ASSUME` for GitHub OIDC.
+- The manual GitHub release workflow expects the repository secret `AWS_ROLE_TO_ASSUME` for GitHub OIDC and deploys through SSM.
 
 These resources are intentionally small. The ECR, S3, CloudWatch, IAM, security group, and EC2 resources are configured and the API has passed live health, readiness, prediction, `/docs`, and `/metrics` checks.
 
 ## GitHub Release
 
-After the repository is connected, run **Build and publish release image** from the Actions tab.
-It rebuilds the synthetic dataset and model, builds the container, and pushes an immutable
-`release-<commit-sha>` tag to ECR. The workflow cannot run until `AWS_ROLE_TO_ASSUME` points
-to a least-privilege GitHub OIDC role.
+Run **Build and publish release image** from the Actions tab. It rebuilds the synthetic
+dataset and model, builds the container, pushes an immutable `release-<commit-sha>` tag
+to ECR, and sends an `AWS-RunShellScript` command to the configured EC2 instance. The
+instance pulls that exact tag, restarts `loan-approval-api`, and verifies `/health` and
+`/ready` locally before the workflow succeeds.
+
+The successful reference deployment is GitHub Actions run `39229982524` for commit
+`3f320f4`.
 
 ## Release Rules
 
@@ -46,14 +50,16 @@ kubectl rollout undo deployment/mlops
 kubectl rollout status deployment/mlops
 ```
 
-For an EC2 Docker deployment, stop the current container, start the previous
-image tag, and verify the same health and prediction endpoints before reopening
-traffic.
+For an EC2 Docker deployment, send the previous image tag through SSM, then verify the
+same health and prediction endpoints before reopening traffic. The release workflow
+uses this same pattern for the current image.
 
 ## Secrets and Permissions
 
 - Use an EC2 instance role for S3, CloudWatch, and ECR read access.
 - Use GitHub OIDC or short-lived credentials for CI publishing.
+- The GitHub role can push only to the loan-approval ECR repository and send/read SSM
+  deployment commands for the single configured instance.
 - Keep AWS keys, registry tokens, and MLflow credentials out of source code,
   Docker build arguments, and image layers.
 - Restrict inbound traffic to the required client or load-balancer ports.

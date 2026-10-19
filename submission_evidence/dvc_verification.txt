@@ -1,0 +1,4 @@
+DVC fetch: Everything is up to date.
+DVC push: 2 files pushed.
+DVC status: Cache and remote 'myremote' are in sync.
+DVC graph: prediction_model/datasets.dvc -> prepare -> train -> evaluate.

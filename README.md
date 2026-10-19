@@ -1,9 +1,9 @@
 # Loan Prediction MLOps Project
 
 This repository contains a reproducible machine-learning workflow for loan-status
-prediction. The local workflow can be run without AWS. Cloud deployment is kept
-configuration-driven so it can be enabled later when the required AWS resources are
-available.
+prediction. The local workflow can be run without AWS, and the current cloud path
+deploys the same tested model through GitHub Actions, ECR, SSM, and one free-tier-sized
+EC2 instance in `ap-south-1`.
 
 ## Workflow
 
@@ -76,13 +76,12 @@ environment variables:
 - `MODEL_PATH` selects the persisted local model artifact.
 - `MODEL_URI` can point directly to a pinned MLflow model version or alias.
 - `MLFLOW_REGISTERED_MODEL_NAME` optionally registers the selected model in MLflow.
-- `MLOPS_S3_BUCKET` and `MLOPS_DRIFT_PREFIX` configure later S3-based monitoring.
+- `MLOPS_S3_BUCKET` and `MLOPS_DRIFT_PREFIX` configure optional S3-based monitoring.
 - `MLOPS_ALLOWED_ORIGINS` controls permitted browser origins.
 - `MLOPS_UPLOAD_PREDICTIONS` stays `false` locally and enables S3 uploads only in the cloud deployment.
 
-Do not put AWS access keys in the Dockerfile, workflow, or source code. The later
-cloud deployment should use an EC2 instance role and GitHub OIDC or another short-
-lived credential mechanism.
+Do not put AWS access keys in the Dockerfile, workflow, or source code. The cloud
+deployment uses an EC2 instance role and GitHub OIDC with short-lived credentials.
 
 ## Docker
 
@@ -98,17 +97,20 @@ docker run --rm -p 8005:8005 --env-file .env loan-prediction-api
 
 FastAPI metrics are exposed through `/metrics`. The drift-monitoring application is
 in `drift_monitoring/app_v1.py` and uses Evidently for data-drift and data-quality
-reports. Prometheus/Grafana deployment and AWS CloudWatch integration are intentionally
-left for the cloud phase.
+reports. The live API exposes Prometheus-compatible metrics, and container logs are
+sent to CloudWatch at `/mlops/loan-approval` with seven-day retention. The local
+Evidently report command remains available when a full HTML drift artifact is needed.
 
-## Planned Cloud Phase
+## Cloud Deployment
 
-The intended deployment uses S3 for the DVC remote, ECR for the container image, and
-one free-tier-sized EC2 instance for the running API. The manual release workflow is in
-`.github/workflows/deploy.yml` and expects the `AWS_ROLE_TO_ASSUME` GitHub secret for
-OIDC-based publishing. Deployment details are in `DEPLOYMENT_RUNBOOK.md`.
+The deployment uses S3 for the DVC remote, ECR for the container image, and one
+free-tier-sized EC2 instance for the running API. The manual release workflow in
+`.github/workflows/deploy.yml` rebuilds the deterministic data and model, publishes an
+immutable `release-<commit-sha>` image, deploys it through AWS Systems Manager, and
+runs `/health` and `/ready` smoke tests inside the instance. It expects the
+`AWS_ROLE_TO_ASSUME` GitHub secret for OIDC-based publishing. Deployment details and
+the current resource identifiers are in `DEPLOYMENT_RUNBOOK.md`.
 
-The release and rollback procedure is documented in
-`DEPLOYMENT_RUNBOOK.md`. The Kubernetes manifest uses a placeholder immutable image
-tag and readiness/liveness probes; replace the placeholder only during a real cloud
-deployment.
+The release and rollback procedure is documented in `DEPLOYMENT_RUNBOOK.md`. The
+Kubernetes manifest remains a portable alternative with an immutable image-tag
+placeholder and readiness/liveness probes.

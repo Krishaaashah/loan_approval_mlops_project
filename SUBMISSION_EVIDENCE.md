@@ -1,0 +1,59 @@
+# Submission Evidence
+
+## Results
+
+The selected XGBoost model was reproduced with the DVC pipeline. The values in
+`artifacts/metrics.json` are:
+
+| Metric | Value |
+| --- | ---: |
+| Accuracy | 0.9500 |
+| Precision | 0.9444 |
+| Recall | 0.9714 |
+| F1 score | 0.9577 |
+
+Related evidence: `poster_screenshots/01_mlflow_runs.png`,
+`poster_screenshots/04_mlflow_metrics_detail.png`, and
+`poster_screenshots/section6_results_chart.png`.
+
+## Interface
+
+The live API is deployed on the EC2 instance in `ap-south-1` at
+`http://43.205.216.66`. Verified endpoints are `/health`, `/ready`, `/docs`,
+`/metrics`, and `/prediction_api`. The live container image is:
+
+```text
+049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-3f320f4974cb91422e30447b83beb20e90e23522
+sha256:bf49b38dc4f113f8716ba66278baa1e8c37f58e8fcc6c3eac2a966a5379ddf43
+```
+
+Related evidence: `poster_screenshots/02_fastapi_docs.png` and
+`poster_screenshots/05_prediction_response.png`.
+
+## Monitoring
+
+The live Prometheus-compatible `/metrics` endpoint returned Python process metrics
+after deployment. Container logs are sent to CloudWatch log group
+`/mlops/loan-approval` with seven-day retention. Related evidence is
+`poster_screenshots/03_monitoring_metrics.png`. The local Evidently generator is
+`scripts/generate_local_drift_report.py`; a full Grafana dashboard is not claimed as
+deployed.
+
+## Reproducibility and Cloud
+
+- DVC remote: `s3://loan-approval-mlops-049681811107-ap-south-1/dvcstore`.
+- `dvc fetch -r myremote` completed with “Everything is up to date”.
+- `dvc push -r myremote` completed with two files pushed and “Cache and remote are in sync”.
+- Verified DVC graph: `poster_screenshots/06_dvc_graph.dot`.
+- EC2: `i-02fd037d73f8a7b68`, `t3.micro`, `ap-south-1a`.
+- CI/deployment role: GitHub OIDC role `LoanApprovalGitHubActionsRole`.
+- Reference release workflow: [GitHub Actions run 39229982524](https://github.com/Krishaaashah/loan_approval_mlops_project/actions/runs/39229982524).
+- Deployment method: ECR plus SSM `AWS-RunShellScript`; no long-lived AWS key is stored in GitHub.
+
+## Limitations
+
+The dataset is deterministic synthetic data for an academic demonstration. It is not
+appropriate for real credit decisions. The EC2 public address can change if the
+instance is stopped, inbound access is restricted to the current client IP, and the
+deployment uses HTTP for this low-cost demonstration rather than a production HTTPS
+load balancer.

@@ -5,16 +5,16 @@ stages:
     deps:
     - path: prediction_model/config/config.py
       hash: md5
-      md5: 1a85bb3e67cc77d6ab774cbf5a61ab24
-      size: 2364
+      md5: b9312b5645a3e324aeb5f7924d2b8d4c
+      size: 2443
     - path: prediction_model/datasets/train.csv
       hash: md5
       md5: 730e100e86210f0b741fa7f5d5a38678
       size: 16654
     - path: prediction_model/prepare_data.py
       hash: md5
-      md5: 0e99e142197e399cbc3817c2f0d8672b
-      size: 1114
+      md5: 8b9e1609bc941df17244b7731714ea2e
+      size: 1151
     outs:
     - path: artifacts/test.csv
       hash: md5
@@ -24,3 +24,55 @@ stages:
       hash: md5
       md5: 4fb8bc7c6aa729c9a32cfce359201ca4
       size: 14261
+  train:
+    cmd: python -m prediction_model.training_pipeline
+    deps:
+    - path: artifacts/test.csv
+      hash: md5
+      md5: 84068e80be44b3208c5649fc5a7e0e86
+      size: 3715
+    - path: artifacts/train.csv
+      hash: md5
+      md5: 4fb8bc7c6aa729c9a32cfce359201ca4
+      size: 14261
+    - path: prediction_model/config/config.py
+      hash: md5
+      md5: b9312b5645a3e324aeb5f7924d2b8d4c
+      size: 2443
+    - path: prediction_model/processing/preprocessing.py
+      hash: md5
+      md5: 9f6d2cecc07a5464360f99628224dff2
+      size: 2774
+    - path: prediction_model/training_pipeline.py
+      hash: md5
+      md5: 17c0129a820a2dfef8615b1eff4a502f
+      size: 5112
+    outs:
+    - path: artifacts/best_params.json
+      hash: md5
+      md5: 053bab0fe7898098603bee030f266d12
+      size: 270
+    - path: artifacts/model.joblib
+      hash: md5
+      md5: 162dd0ab7a76cf572712858db3ea4730
+      size: 84323
+  evaluate:
+    cmd: python -m prediction_model.evaluate
+    deps:
+    - path: artifacts/model.joblib
+      hash: md5
+      md5: 162dd0ab7a76cf572712858db3ea4730
+      size: 84323
+    - path: artifacts/test.csv
+      hash: md5
+      md5: 84068e80be44b3208c5649fc5a7e0e86
+      size: 3715
+    - path: prediction_model/evaluate.py
+      hash: md5
+      md5: 8b46e27747737b370bfa2095b40e02ca
+      size: 1035
+    outs:
+    - path: artifacts/metrics.json
+      hash: md5
+      md5: 47bfbef052ea8bdae60f149954c5754c
+      size: 128

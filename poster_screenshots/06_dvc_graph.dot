@@ -1,0 +1,7 @@
+digraph dvc_pipeline {
+  rankdir=LR;
+  "prediction_model/datasets.dvc" -> prepare;
+  prepare -> train;
+  prepare -> evaluate;
+  train -> evaluate;
+}
