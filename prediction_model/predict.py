@@ -67,6 +67,12 @@ def generate_predictions_batch(data_input):
     return _predict(get_model(), data_input)
 
 
+def generate_prediction_details(data_input):
+    from prediction_model.explain import explain_prediction
+
+    return explain_prediction(get_model(), data_input)
+
+
 
 
 

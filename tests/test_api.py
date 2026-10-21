@@ -38,7 +38,11 @@ def test_prediction_endpoint_uses_local_model(monkeypatch):
     response = TestClient(main.app).post("/prediction_api", json=payload)
 
     assert response.status_code == 200
-    assert response.json() == {"status": "Approved"}
+    body = response.json()
+    assert body["status"] == "Approved"
+    assert body["decision"] == "Approved"
+    assert 0 <= body["approval_probability"] <= 1
+    assert body["confidence"] in {"Low", "Medium", "High"}
 
 
 def test_batch_prediction_does_not_require_s3_in_local_mode(monkeypatch):

@@ -54,6 +54,11 @@ uvicorn main:app --reload --port 8005
 Useful endpoints are `/health`, `/ready`, `/docs`, `/metrics`, and
 `/prediction_api`.
 
+`/prediction_api` returns the decision, approval/rejection probabilities, confidence,
+and local feature contributions. SHAP is used when available; a deterministic
+feature-importance explanation is used as a runtime fallback. The root page renders
+these same details in the browser form.
+
 Install `requirements-monitoring.txt` separately when running the Streamlit drift
 dashboard.
 
@@ -79,6 +84,7 @@ environment variables:
 - `MLOPS_S3_BUCKET` and `MLOPS_DRIFT_PREFIX` configure optional S3-based monitoring.
 - `MLOPS_ALLOWED_ORIGINS` controls permitted browser origins.
 - `MLOPS_UPLOAD_PREDICTIONS` stays `false` locally and enables S3 uploads only in the cloud deployment.
+- `MLOPS_AUTH_USERNAME`, `MLOPS_AUTH_PASSWORD`, and `MLOPS_AUTH_SECRET` enable bearer-token authentication when all three are set.
 
 Do not put AWS access keys in the Dockerfile, workflow, or source code. The cloud
 deployment uses an EC2 instance role and GitHub OIDC with short-lived credentials.
@@ -114,3 +120,20 @@ the current resource identifiers are in `DEPLOYMENT_RUNBOOK.md`.
 The release and rollback procedure is documented in `DEPLOYMENT_RUNBOOK.md`. The
 Kubernetes manifest remains a portable alternative with an immutable image-tag
 placeholder and readiness/liveness probes.
+
+## Monitoring and Responsible AI
+
+Start the local Prometheus/Grafana stack with:
+
+```powershell
+docker compose -f monitoring/docker-compose.yml up -d
+```
+
+The provisioned dashboard covers request rate, p95 latency, HTTP errors, total
+requests, and process uptime. `scripts/check_drift.py` writes a PSI report and exits
+with code 2 when the configured threshold is exceeded. `scripts/fairness_report.py`
+creates approval-rate comparisons for the audit attributes in the synthetic data.
+
+The scheduled GitHub workflow `.github/workflows/drift-monitor.yml` can trigger the
+gated retraining workflow. Retraining must pass the configured F1 threshold before the
+immutable deployment workflow is started; drift alone never deploys a model.

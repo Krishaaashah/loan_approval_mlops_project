@@ -28,12 +28,19 @@ Completed:
 - MLflow tracks candidate runs and F1-based model selection.
 - The selected model is persisted as `artifacts/model.joblib`.
 - `artifacts/metrics.json` records accuracy, precision, recall, and F1.
+- Probability credibility is measured with Brier score and ROC-AUC; an auxiliary
+  XGBoost regressor comparison is available at `scripts/compare_xgboost_regressor.py`.
+- The API returns confidence and local feature explanations, using SHAP when installed.
 - The API exposes Prometheus-compatible `/metrics` output.
 - CloudWatch captures the running container logs.
 - `scripts/generate_local_drift_report.py` provides the Evidently drift-report path.
+- `scripts/check_drift.py` calculates PSI drift and the scheduled workflow gates retraining.
+- `scripts/fairness_report.py` produces group approval-rate audits.
+- Optional bearer authentication is implemented through environment variables.
 
-The submission uses the live `/metrics` endpoint and CloudWatch logs as the deployed
-monitoring evidence. A full Grafana dashboard is not claimed as deployed.
+The repository includes a complete Prometheus/Grafana dashboard configuration under
+`monitoring/`. The live EC2 deployment still uses the lightweight API/CloudWatch path
+unless the monitoring compose stack is deliberately started on a suitably sized host.
 
 ## CO4: Documentation, Deployment Strategy, and Presentation
 

@@ -15,7 +15,8 @@ def evaluate_model():
     model = joblib.load(config.MODEL_PATH)
     y_true = test_data[config.TARGET].map({"N": 0, "Y": 1})
     y_pred = model.predict(test_data[config.FEATURES])
-    metrics = calculate_metrics(y_true, y_pred)
+    y_probability = model.predict_proba(test_data[config.FEATURES])[:, 1]
+    metrics = calculate_metrics(y_true, y_pred, y_probability)
 
     os.makedirs(config.ARTIFACTS_DIR, exist_ok=True)
     with open(config.METRICS_PATH, "w", encoding="utf-8") as file:

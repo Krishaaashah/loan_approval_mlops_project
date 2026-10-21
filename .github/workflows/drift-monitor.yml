@@ -1,0 +1,64 @@
+name: Drift monitor and gated retraining
+
+on:
+  workflow_dispatch:
+    inputs:
+      current_data:
+        description: "Path to the current production sample CSV"
+        required: true
+        default: artifacts/test.csv
+      threshold:
+        description: "PSI threshold that requests retraining"
+        required: false
+        default: "0.2"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install monitoring dependencies
+        run: python -m pip install pandas==1.5.3 numpy==1.24.3
+
+      - name: Calculate drift report
+        id: drift
+        continue-on-error: true
+        env:
+          CURRENT_DATA: ${{ inputs.current_data }}
+          THRESHOLD: ${{ inputs.threshold }}
+        run: |
+          python scripts/check_drift.py \
+            --reference artifacts/train.csv \
+            --current "$CURRENT_DATA" \
+            --threshold "$THRESHOLD" \
+            --output artifacts/drift_report.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Upload drift report
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-${{ github.run_id }}
+          path: artifacts/drift_report.json
+
+      - name: Trigger gated retraining
+        if: steps.drift.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Drift exceeded the threshold. Starting the gated retraining workflow."
+          gh workflow run retrain.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: Mark stable monitoring result
+        if: steps.drift.outcome == 'success'
+        run: echo "No feature exceeded the configured PSI threshold."

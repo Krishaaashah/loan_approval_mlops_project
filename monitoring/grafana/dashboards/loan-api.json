@@ -1,0 +1,20 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {"type":"timeseries","title":"Request rate","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"sum(rate(http_requests_total[5m]))","legendFormat":"requests/sec","refId":"A"}]},
+    {"type":"timeseries","title":"P95 latency","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))","legendFormat":"p95","refId":"A"}]},
+    {"type":"timeseries","title":"HTTP errors","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"sum(rate(http_requests_total{status=~\"4..|5..\"}[5m]))","legendFormat":"errors/sec","refId":"A"}]},
+    {"type":"stat","title":"Total requests","gridPos":{"h":8,"w":6,"x":12,"y":8},"targets":[{"expr":"sum(http_requests_total)","legendFormat":"total","refId":"A"}]},
+    {"type":"stat","title":"API process uptime","gridPos":{"h":8,"w":6,"x":18,"y":8},"targets":[{"expr":"process_start_time_seconds","legendFormat":"start time","refId":"A"}]}
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["mlops", "loan-approval"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "title": "Loan Approval API Monitoring",
+  "uid": "loan-approval-api",
+  "version": 1
+}

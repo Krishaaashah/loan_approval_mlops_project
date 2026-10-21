@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, brier_score_loss, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 
@@ -67,13 +67,17 @@ def build_pipeline(params):
     )
 
 
-def calculate_metrics(y_true, y_pred):
-    return {
+def calculate_metrics(y_true, y_pred, y_probability=None):
+    metrics = {
         "f1_score": float(f1_score(y_true, y_pred, zero_division=0)),
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "recall": float(recall_score(y_true, y_pred, zero_division=0)),
         "precision": float(precision_score(y_true, y_pred, zero_division=0)),
     }
+    if y_probability is not None:
+        metrics["brier_score"] = float(brier_score_loss(y_true, y_probability))
+        metrics["roc_auc"] = float(roc_auc_score(y_true, y_probability))
+    return metrics
 
 
 def train_model(max_evals=5):
@@ -90,7 +94,8 @@ def train_model(max_evals=5):
                 mlflow.log_params(params)
                 model.fit(X_train, y_train)
                 predictions = model.predict(X_test)
-                metrics = calculate_metrics(y_test, predictions)
+                probabilities = model.predict_proba(X_test)[:, 1]
+                metrics = calculate_metrics(y_test, predictions, probabilities)
                 mlflow.log_metrics(metrics)
                 mlflow.sklearn.log_model(model, config.MODEL_NAME)
             return {"loss": 1 - metrics["f1_score"], "status": STATUS_OK}
@@ -116,7 +121,11 @@ def train_model(max_evals=5):
 
         best_model = build_pipeline(best_params)
         best_model.fit(X_train, y_train)
-        best_metrics = calculate_metrics(y_test, best_model.predict(X_test))
+        best_metrics = calculate_metrics(
+            y_test,
+            best_model.predict(X_test),
+            best_model.predict_proba(X_test)[:, 1],
+        )
         mlflow.log_params(best_params)
         mlflow.log_metrics({f"best_{key}": value for key, value in best_metrics.items()})
         model_info = mlflow.sklearn.log_model(best_model, config.MODEL_NAME)

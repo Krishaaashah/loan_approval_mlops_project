@@ -25,7 +25,8 @@ small AWS deployment.
 5. `evaluate.py` writes accuracy, precision, recall, and F1 to `artifacts/metrics.json`.
 6. FastAPI loads one configured model and serves single and batch predictions.
 7. Docker packages the API with a health check; it does not train during image creation.
-8. Prometheus-compatible API metrics and Evidently drift reports provide monitoring hooks.
+8. Prometheus-compatible API metrics, Grafana dashboards, drift reports, and fairness
+   reports provide monitoring and governance evidence.
 
 ## Synthetic Dataset
 
@@ -62,4 +63,6 @@ The implemented cloud flow adds IAM roles, ECR publishing, SSM-based EC2 deploym
 CloudWatch logging, secrets isolation through GitHub OIDC, immutable releases,
 rollback guidance, and submission evidence. Prometheus-compatible metrics and the
 local Evidently workflow remain available as monitoring interfaces; a full Grafana
-dashboard is optional rather than a claimed deployed component.
+dashboard configuration is included under `monitoring/` for local or appropriately
+sized deployment. Authentication, confidence scores, SHAP explanations, PSI drift
+gates, and fairness reports are implemented in the application code.

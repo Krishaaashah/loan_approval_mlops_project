@@ -77,3 +77,15 @@ ALLOWED_ORIGINS = [
     for origin in os.getenv("MLOPS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# Authentication is opt-in so existing local demos remain usable. Production
+# deployments should provide all three values through a secret manager.
+AUTH_USERNAME = os.getenv("MLOPS_AUTH_USERNAME", "").strip()
+AUTH_PASSWORD = os.getenv("MLOPS_AUTH_PASSWORD", "")
+AUTH_SECRET = os.getenv("MLOPS_AUTH_SECRET", "")
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("MLOPS_AUTH_TOKEN_TTL_SECONDS", "3600"))
+AUTH_ENABLED = bool(AUTH_USERNAME and AUTH_PASSWORD and AUTH_SECRET)
+
+DRIFT_REPORT_PATH = os.getenv(
+    "MLOPS_DRIFT_REPORT_PATH", os.path.join(ARTIFACTS_DIR, "drift_report.json")
+)

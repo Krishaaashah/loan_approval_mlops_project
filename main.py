@@ -1,11 +1,18 @@
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import base64
+import hashlib
+import hmac
+import json
+import time
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import uvicorn
 import numpy as np
 import pandas as pd
 from fastapi.middleware.cors import CORSMiddleware
-from prediction_model.predict import generate_predictions, generate_predictions_batch, get_model
+from prediction_model.predict import generate_predictions_batch, generate_prediction_details, get_model
 from prediction_model.config import config
 import io
 from datetime import datetime
@@ -62,6 +69,43 @@ app.add_middleware(
 
 if Instrumentator is not None:
     Instrumentator().instrument(app).expose(app)
+
+bearer = HTTPBearer(auto_error=False)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _encode_token(payload: dict) -> str:
+    body = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=")
+    signature = hmac.new(config.AUTH_SECRET.encode(), body, hashlib.sha256).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=")
+    return f"{body.decode()}.{encoded_signature.decode()}"
+
+
+def _valid_token(token: str) -> bool:
+    try:
+        encoded_body, encoded_signature = token.split(".", 1)
+        expected = hmac.new(config.AUTH_SECRET.encode(), encoded_body.encode(), hashlib.sha256).digest()
+        supplied = base64.urlsafe_b64decode(encoded_signature + "=" * (-len(encoded_signature) % 4))
+        payload = json.loads(base64.urlsafe_b64decode(encoded_body + "=" * (-len(encoded_body) % 4)))
+        return hmac.compare_digest(expected, supplied) and payload["exp"] > int(time.time())
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+
+
+def require_auth(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    if not config.AUTH_ENABLED:
+        return None
+    if credentials is None or credentials.scheme.lower() != "bearer" or not _valid_token(credentials.credentials):
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
 
 class LoanPrediction(BaseModel):
     Gender: str
@@ -164,14 +208,35 @@ def index():
             ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
               .forEach((key) => { values[key] = Number(values[key]); });
             try {
-              const response = await fetch('/prediction_api', {
+              const headers = { 'Content-Type': 'application/json' };
+              const savedToken = window.localStorage.getItem('loan_prediction_token');
+              if (savedToken) headers.Authorization = `Bearer ${savedToken}`;
+              let response = await fetch('/prediction_api', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(values)
               });
+              if (response.status === 401) {
+                const username = window.prompt('Username');
+                const password = window.prompt('Password');
+                const login = await fetch('/auth/login', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ username, password })
+                });
+                if (!login.ok) throw new Error('Login failed');
+                const auth = await login.json();
+                window.localStorage.setItem('loan_prediction_token', auth.access_token);
+                headers.Authorization = `Bearer ${auth.access_token}`;
+                response = await fetch('/prediction_api', { method: 'POST', headers, body: JSON.stringify(values) });
+              }
               const payload = await response.json();
               if (!response.ok) throw new Error(payload.detail || 'Prediction request failed');
-              result.textContent = `Prediction: ${payload.status}`;
+              const positive = (payload.positive_factors || []).map(item => item.feature).join(', ') || 'None';
+              const negative = (payload.negative_factors || []).map(item => item.feature).join(', ') || 'None';
+              result.innerHTML = `<strong>Prediction: ${payload.status}</strong><br>` +
+                `Approval probability: ${(payload.approval_probability * 100).toFixed(1)}%<br>` +
+                `Confidence: ${payload.confidence}<br>` +
+                `Positive factors: ${positive}<br>Negative factors: ${negative}`;
               result.className = payload.status === 'Approved' ? 'approved' : 'rejected';
             } catch (error) {
               result.textContent = `Error: ${error.message}`;
@@ -191,6 +256,25 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/auth/status")
+def auth_status():
+    return {"enabled": config.AUTH_ENABLED}
+
+
+@app.post("/auth/login")
+def login(credentials: LoginRequest):
+    if not config.AUTH_ENABLED:
+        return {"enabled": False, "access_token": "", "token_type": "bearer"}
+    if not hmac.compare_digest(credentials.username, config.AUTH_USERNAME) or not hmac.compare_digest(
+        credentials.password, config.AUTH_PASSWORD
+    ):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    token = _encode_token(
+        {"sub": config.AUTH_USERNAME, "exp": int(time.time()) + config.AUTH_TOKEN_TTL_SECONDS}
+    )
+    return {"enabled": True, "access_token": token, "token_type": "bearer"}
+
+
 @app.get("/ready")
 def readiness():
     try:
@@ -200,14 +284,10 @@ def readiness():
     return {"status": "ready"}
 
 @app.post("/prediction_api")
-def predict(loan_details: LoanPrediction):
+def predict(loan_details: LoanPrediction, _: bool | None = Depends(require_auth)):
     data = loan_details.model_dump()
-    prediction = generate_predictions([data])["prediction"][0]
-    if prediction == "Y":
-        pred = "Approved"
-    else:
-        pred = "Rejected"
-    return {"status":pred}
+    details = generate_prediction_details([data])
+    return {"status": details["decision"], **details}
 
 
 
@@ -223,7 +303,8 @@ def predict_gui(Gender: str,
     LoanAmount: float,
     Loan_Amount_Term: float,
     Credit_History: float,
-    Property_Area: str):
+    Property_Area: str,
+    _: bool | None = Depends(require_auth)):
 
     input_data = [Gender, Married,Dependents, Education, Self_Employed,ApplicantIncome,
      CoapplicantIncome,LoanAmount, Loan_Amount_Term,Credit_History, Property_Area  ]
@@ -233,17 +314,13 @@ def predict_gui(Gender: str,
        'Loan_Amount_Term', 'Credit_History', 'Property_Area']
 
     data_dict = dict(zip(cols,input_data))
-    prediction = generate_predictions([data_dict])["prediction"][0]
-    if prediction == "Y":
-        pred = "Approved"
-    else:
-        pred = "Rejected"
-    return {"status":pred}
+    details = generate_prediction_details([data_dict])
+    return {"status": details["decision"], **details}
 
 
 
 @app.post("/batch_prediction")
-async def batch_predict(file: UploadFile = File(...)):
+async def batch_predict(file: UploadFile = File(...), _: bool | None = Depends(require_auth)):
 
     content = await file.read()
     df = pd.read_csv(io.BytesIO(content),index_col=False)

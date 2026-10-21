@@ -26,3 +26,13 @@ def test_batch_prediction_returns_one_result_per_row():
     )
 
     assert result["prediction"] == ["Y", "Y"]
+
+
+def test_prediction_details_include_confidence_and_explanation():
+    result = predict.generate_prediction_details([{"ApplicantIncome": 1000}])
+
+    assert result["decision"] == "Approved"
+    assert 0 <= result["approval_probability"] <= 1
+    assert result["confidence"] in {"Low", "Medium", "High"}
+    assert "positive_factors" in result
+    assert "negative_factors" in result

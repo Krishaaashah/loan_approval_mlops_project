@@ -1,0 +1,39 @@
+name: Gated retraining and release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    env:
+      MIN_F1_SCORE: "0.90"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Rebuild and evaluate candidate model
+        run: |
+          python scripts/generate_synthetic_data.py --output-dir prediction_model/datasets
+          python -m prediction_model.prepare_data
+          python -m prediction_model.training_pipeline
+          python -m prediction_model.evaluate
+          python -m pytest -q
+
+      - name: Trigger immutable deployment after metric gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
