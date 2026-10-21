@@ -3,8 +3,9 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -47,6 +48,36 @@ def upload_to_s3(file_content, filename):
     s3.put_object(Bucket=config.S3_BUCKET, Key=s3_key, Body=file_content)
 
     return s3_key
+
+
+def record_production_event(data: dict, details: dict) -> None:
+    """Store a prediction input for drift monitoring without blocking inference."""
+    if not config.PRODUCTION_LOG_ENABLED:
+        return
+
+    event = {
+        "timestamp": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "request_id": uuid.uuid4().hex,
+        "features": {feature: data.get(feature) for feature in config.FEATURES},
+        "prediction": details.get("decision"),
+        "approval_probability": details.get("approval_probability"),
+    }
+    current_date = datetime.utcnow().strftime("%Y-%m-%d")
+    current_hour = datetime.utcnow().strftime("%H")
+    key = f"{config.PRODUCTION_PREFIX}/{current_date}/{current_hour}/{event['request_id']}.json"
+
+    try:
+        import boto3
+
+        boto3.client("s3").put_object(
+            Bucket=config.PRODUCTION_BUCKET,
+            Key=key,
+            Body=json.dumps(event).encode("utf-8"),
+            ContentType="application/json",
+        )
+    except Exception as exc:
+        # Monitoring must never make a valid prediction fail.
+        print(f"production drift event upload failed: {exc}")
 
 if mlflow is not None:
     mlflow.set_tracking_uri(config.TRACKING_URI)
@@ -284,9 +315,14 @@ def readiness():
     return {"status": "ready"}
 
 @app.post("/prediction_api")
-def predict(loan_details: LoanPrediction, _: bool | None = Depends(require_auth)):
+def predict(
+    loan_details: LoanPrediction,
+    background_tasks: BackgroundTasks,
+    _: bool | None = Depends(require_auth),
+):
     data = loan_details.model_dump()
     details = generate_prediction_details([data])
+    background_tasks.add_task(record_production_event, data, details)
     return {"status": details["decision"], **details}
 
 
@@ -304,6 +340,7 @@ def predict_gui(Gender: str,
     Loan_Amount_Term: float,
     Credit_History: float,
     Property_Area: str,
+    background_tasks: BackgroundTasks,
     _: bool | None = Depends(require_auth)):
 
     input_data = [Gender, Married,Dependents, Education, Self_Employed,ApplicantIncome,
@@ -315,6 +352,7 @@ def predict_gui(Gender: str,
 
     data_dict = dict(zip(cols,input_data))
     details = generate_prediction_details([data_dict])
+    background_tasks.add_task(record_production_event, data_dict, details)
     return {"status": details["decision"], **details}
 
 

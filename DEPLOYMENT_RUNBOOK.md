@@ -14,7 +14,11 @@ The current target region is `ap-south-1`.
 - ECR tags are immutable and the lifecycle policy retains at most three `release-*` images.
 - The manual GitHub release workflow expects the repository secret `AWS_ROLE_TO_ASSUME` for GitHub OIDC and deploys through SSM.
 
-These resources are intentionally small. The ECR, S3, CloudWatch, IAM, security group, and EC2 resources are configured and the API has passed live health, readiness, prediction, `/docs`, and `/metrics` checks.
+These resources are intentionally small. The ECR, S3, CloudWatch, IAM, security group, and EC2 resources are configured and the API has passed live health, readiness, prediction, `/docs`, and `/metrics` checks. The deployment also starts resource-limited `loan-prometheus` and `loan-grafana` containers with persistent Docker volumes. Grafana is available at `http://<EC2_PUBLIC_IP>:3000` only from the configured client IP, and its provisioned dashboard reads the API over the private Docker network.
+
+Prediction inputs for drift are written as JSON events under the private S3 prefix
+`production/predictions/`. The EC2 role can write only that prefix, while the GitHub
+OIDC role can list/read only that prefix for the scheduled drift workflow.
 
 ## GitHub Release
 
@@ -25,7 +29,7 @@ instance pulls that exact tag, restarts `loan-approval-api`, and verifies `/heal
 `/ready` locally before the workflow succeeds.
 
 The successful reference deployment is GitHub Actions run `39629112745` for commit
-`3f320f4`.
+`ecec1571`.
 
 ## Release Rules
 
@@ -56,10 +60,11 @@ uses this same pattern for the current image.
 
 ## Secrets and Permissions
 
-- Use an EC2 instance role for S3, CloudWatch, and ECR read access.
+- Use an EC2 instance role for production-event writes, CloudWatch, and ECR read access.
 - Use GitHub OIDC or short-lived credentials for CI publishing.
-- The GitHub role can push only to the loan-approval ECR repository and send/read SSM
-  deployment commands for the single configured instance.
+- The GitHub role can push only to the loan-approval ECR repository, send/read SSM
+  deployment commands for the single configured instance, and read only the
+  `production/predictions/` S3 prefix.
 - Keep AWS keys, registry tokens, and MLflow credentials out of source code,
   Docker build arguments, and image layers.
 - Restrict inbound traffic to the required client or load-balancer ports.

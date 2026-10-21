@@ -61,8 +61,8 @@ DVC/S3 dataset -> DVC pipeline -> MLflow experiment and selected model
 
 The implemented cloud flow adds IAM roles, ECR publishing, SSM-based EC2 deployment,
 CloudWatch logging, secrets isolation through GitHub OIDC, immutable releases,
-rollback guidance, and submission evidence. Prometheus-compatible metrics and the
-local Evidently workflow remain available as monitoring interfaces; a full Grafana
-dashboard configuration is included under `monitoring/` for local or appropriately
-sized deployment. Authentication, confidence scores, SHAP explanations, PSI drift
-gates, and fairness reports are implemented in the application code.
+rollback guidance, and submission evidence. Prometheus-compatible metrics are scraped
+by a resource-limited cloud Grafana/Prometheus stack, while each production prediction
+is stored as a feature event in the existing private S3 bucket for scheduled drift
+checks. Authentication remains opt-in, while confidence scores, SHAP explanations,
+PSI drift gates, and fairness reports are implemented in the application code.

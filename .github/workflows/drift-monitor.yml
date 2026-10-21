@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   actions: write
+  id-token: write
 
 jobs:
   drift:
@@ -30,14 +31,41 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-south-1
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
       - name: Install monitoring dependencies
         run: python -m pip install pandas==1.5.3 numpy==1.24.3
 
+      - name: Download production prediction events
+        id: production
+        if: github.event_name == 'schedule'
+        env:
+          PRODUCTION_BUCKET: loan-approval-mlops-049681811107-ap-south-1
+          PRODUCTION_PREFIX: production/predictions
+        run: |
+          mkdir -p artifacts/production_events
+          aws s3 sync "s3://$PRODUCTION_BUCKET/$PRODUCTION_PREFIX" artifacts/production_events \
+            --exclude "*" --include "*.json" --only-show-errors
+          if ! find artifacts/production_events -type f -name '*.json' -print -quit | grep -q .; then
+            echo "has_data=false" >> "$GITHUB_OUTPUT"
+            printf '{"status":"skipped","reason":"No production prediction events available yet."}\n' > artifacts/drift_report.json
+            exit 0
+          fi
+          echo "has_data=true" >> "$GITHUB_OUTPUT"
+          python scripts/build_production_drift_sample.py \
+            --source artifacts/production_events \
+            --output artifacts/production_sample.csv
+
       - name: Calculate drift report
         id: drift
+        if: github.event_name == 'workflow_dispatch' || steps.production.outputs.has_data == 'true'
         continue-on-error: true
         env:
-          CURRENT_DATA: ${{ inputs.current_data || 'artifacts/test.csv' }}
+          CURRENT_DATA: ${{ inputs.current_data || 'artifacts/production_sample.csv' }}
           THRESHOLD: ${{ inputs.threshold || '0.2' }}
         run: |
           python scripts/check_drift.py \
@@ -48,6 +76,7 @@ jobs:
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Upload drift report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: drift-report-${{ github.run_id }}
@@ -64,3 +93,7 @@ jobs:
       - name: Mark stable monitoring result
         if: steps.drift.outcome == 'success'
         run: echo "No feature exceeded the configured PSI threshold."
+
+      - name: Mark empty production window
+        if: github.event_name == 'schedule' && steps.production.outputs.has_data != 'true'
+        run: echo "No production prediction events are available; drift check will run after traffic arrives."

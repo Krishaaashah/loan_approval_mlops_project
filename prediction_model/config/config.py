@@ -89,3 +89,13 @@ AUTH_ENABLED = bool(AUTH_USERNAME and AUTH_PASSWORD and AUTH_SECRET)
 DRIFT_REPORT_PATH = os.getenv(
     "MLOPS_DRIFT_REPORT_PATH", os.path.join(ARTIFACTS_DIR, "drift_report.json")
 )
+
+# Production feature logging is opt-in. The deployed EC2 instance enables it so
+# drift checks can use real prediction inputs from the existing S3 bucket.
+PRODUCTION_LOG_ENABLED = os.getenv("MLOPS_PRODUCTION_LOG_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+PRODUCTION_BUCKET = os.getenv("MLOPS_PRODUCTION_BUCKET", S3_BUCKET).strip()
+PRODUCTION_PREFIX = os.getenv("MLOPS_PRODUCTION_PREFIX", "production/predictions").strip("/")

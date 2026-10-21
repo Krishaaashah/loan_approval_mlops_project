@@ -130,10 +130,15 @@ docker compose -f monitoring/docker-compose.yml up -d
 ```
 
 The provisioned dashboard covers request rate, p95 latency, HTTP errors, total
-requests, and process uptime. `scripts/check_drift.py` writes a PSI report and exits
+requests, and process uptime. The deployment workflow also starts resource-limited
+Prometheus and Grafana containers on EC2, with Grafana restricted at the security
+group to the current client IP. `scripts/check_drift.py` writes a PSI report and exits
 with code 2 when the configured threshold is exceeded. `scripts/fairness_report.py`
 creates approval-rate comparisons for the audit attributes in the synthetic data.
 
-The scheduled GitHub workflow `.github/workflows/drift-monitor.yml` can trigger the
-gated retraining workflow. Retraining must pass the configured F1 threshold before the
-immutable deployment workflow is started; drift alone never deploys a model.
+Each deployed prediction records its input features and prediction metadata as a
+separate JSON event under the `production/predictions/` prefix in the existing private
+S3 bucket. The scheduled GitHub workflow downloads those events, builds a recent
+production sample, and can trigger the gated retraining workflow. Retraining must pass
+the configured F1 threshold before the immutable deployment workflow is started; drift
+alone never deploys a model.

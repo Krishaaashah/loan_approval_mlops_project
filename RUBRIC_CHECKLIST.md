@@ -35,12 +35,15 @@ Completed:
 - CloudWatch captures the running container logs.
 - `scripts/generate_local_drift_report.py` provides the Evidently drift-report path.
 - `scripts/check_drift.py` calculates PSI drift and the scheduled workflow gates retraining.
+- The deployed API writes real prediction inputs to the private S3 production-events
+  prefix, and scheduled drift checks build their current sample from those events.
 - `scripts/fairness_report.py` produces group approval-rate audits.
 - Optional bearer authentication is implemented through environment variables.
 
 The repository includes a complete Prometheus/Grafana dashboard configuration under
-`monitoring/`. The live EC2 deployment still uses the lightweight API/CloudWatch path
-unless the monitoring compose stack is deliberately started on a suitably sized host.
+`monitoring/`. The live EC2 deployment starts resource-limited Prometheus and Grafana
+containers on the existing host and keeps Grafana access restricted to the configured
+client IP.
 
 ## CO4: Documentation, Deployment Strategy, and Presentation
 
