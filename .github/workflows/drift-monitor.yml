@@ -11,6 +11,8 @@ on:
         description: "PSI threshold that requests retraining"
         required: false
         default: "0.2"
+  schedule:
+    - cron: "0 3 * * 1"
 
 permissions:
   contents: read
@@ -35,8 +37,8 @@ jobs:
         id: drift
         continue-on-error: true
         env:
-          CURRENT_DATA: ${{ inputs.current_data }}
-          THRESHOLD: ${{ inputs.threshold }}
+          CURRENT_DATA: ${{ inputs.current_data || 'artifacts/test.csv' }}
+          THRESHOLD: ${{ inputs.threshold || '0.2' }}
         run: |
           python scripts/check_drift.py \
             --reference artifacts/train.csv \
