@@ -28,8 +28,8 @@ The live API is deployed on the EC2 instance in `ap-south-1` at
 `/metrics`, and `/prediction_api`. The live container image is:
 
 ```text
-049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-3f320f4974cb91422e30447b83beb20e90e23522
-sha256:bf49b38dc4f113f8716ba66278baa1e8c37f58e8fcc6c3eac2a966a5379ddf43
+049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-ecec1571d6dac04bad5304802ad50422458fbeef
+sha256:a4ffd4fd64115b7be3f39818ce51792784a81bac8183b4a340c2c486d177369a
 ```
 
 Related evidence: `poster_screenshots/02_fastapi_docs.png` and
@@ -56,7 +56,7 @@ The PSI drift check on the current train/test split found no feature above thres
 - Verified DVC graph: `poster_screenshots/06_dvc_graph.dot`.
 - EC2: `i-02fd037d73f8a7b68`, `t3.micro`, `ap-south-1a`.
 - CI/deployment role: GitHub OIDC role `LoanApprovalGitHubActionsRole`.
-- Reference release workflow: [GitHub Actions run 39229982524](https://github.com/Krishaaashah/loan_approval_mlops_project/actions/runs/39229982524).
+- Reference release workflow: [GitHub Actions run 39629112745](https://github.com/Krishaaashah/loan_approval_mlops_project/actions/runs/39629112745).
 - Deployment method: ECR plus SSM `AWS-RunShellScript`; no long-lived AWS key is stored in GitHub.
 
 ## Limitations
