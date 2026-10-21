@@ -6,7 +6,7 @@ Completed:
 
 - DVC remote is configured in `.dvc/config`, and the S3 remote is versioned and private.
 - EC2 instance `i-02fd037d73f8a7b68` uses an instance role and restricted security group.
-- ECR contains immutable release tag `release-507999ca0d08b026b8a7d5dea89aec382e2efdc8`.
+- ECR contains immutable release tag `release-86c9e369ef587b6ff8968b11ab434bcdd22d9744`.
 - CloudWatch log group `/mlops/loan-approval` receives container logs with seven-day retention.
 - Live health, readiness, prediction, `/docs`, and `/metrics` requests were verified.
 

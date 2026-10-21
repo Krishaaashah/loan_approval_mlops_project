@@ -10,7 +10,7 @@ The current target region is `ap-south-1`.
 - ECR repository: `049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops`.
 - CloudWatch log group: `/mlops/loan-approval`, retained for 7 days.
 - Security group: `sg-0b199416088c16b23`; ports 22 and 80 are restricted to the current client IP.
-- Current image: `release-507999ca0d08b026b8a7d5dea89aec382e2efdc8`, digest `sha256:57245cef3110c9d3a195759097dbdb437128f6c479570015114b252852901aee`.
+- Current image: `release-86c9e369ef587b6ff8968b11ab434bcdd22d9744`, digest `sha256:b699d6fbad851eb58987b21f28061682500f5d8ceee663b05334ff7383bc1283`.
 - ECR tags are immutable and the lifecycle policy retains at most three `release-*` images.
 - The manual GitHub release workflow expects the repository secret `AWS_ROLE_TO_ASSUME` for GitHub OIDC and deploys through SSM.
 
@@ -28,8 +28,8 @@ to ECR, and sends an `AWS-RunShellScript` command to the configured EC2 instance
 instance pulls that exact tag, restarts `loan-approval-api`, and verifies `/health` and
 `/ready` locally before the workflow succeeds.
 
-The successful reference deployment is GitHub Actions run `39636843637` for commit
-`507999c`.
+The successful reference deployment is GitHub Actions run `39638313606` for commit
+`86c9e36`.
 
 ## Release Rules
 
