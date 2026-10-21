@@ -101,6 +101,8 @@ jobs:
               "printf '%s' \"$DASHBOARD\" > /opt/loan-approval-monitoring/grafana/dashboards/loan-api.json",
               "docker rm -f loan-approval-api || true",
               "docker run --detach --name loan-approval-api --restart unless-stopped --network loan-approval-net --publish 80:8005 --env MLOPS_UPLOAD_PREDICTIONS=false --env MLOPS_PRODUCTION_LOG_ENABLED=true --env MLOPS_PRODUCTION_BUCKET=loan-approval-mlops-049681811107-ap-south-1 --env MLOPS_PRODUCTION_PREFIX=production/predictions --env MLOPS_ALLOWED_ORIGINS='*' --log-driver=awslogs --log-opt awslogs-region=ap-south-1 --log-opt awslogs-group=/mlops/loan-approval --log-opt awslogs-create-group=false --log-opt awslogs-stream=loan-api \"$IMAGE_URI\"",
+              "docker image ls 049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops --format '{{.Repository}}:{{.Tag}}' | grep '^049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-' | grep -v \"^$IMAGE_URI$\" | xargs -r docker image rm || true",
+              "docker image prune -f",
               "docker pull prom/prometheus:v2.53.0",
               "docker pull grafana/grafana:11.1.0",
               "docker rm -f loan-prometheus loan-grafana || true",

@@ -6,7 +6,7 @@ Completed:
 
 - DVC remote is configured in `.dvc/config`, and the S3 remote is versioned and private.
 - EC2 instance `i-02fd037d73f8a7b68` uses an instance role and restricted security group.
-- ECR contains immutable release tag `release-ecec1571d6dac04bad5304802ad50422458fbeef`.
+- ECR contains immutable release tag `release-507999ca0d08b026b8a7d5dea89aec382e2efdc8`.
 - CloudWatch log group `/mlops/loan-approval` receives container logs with seven-day retention.
 - Live health, readiness, prediction, `/docs`, and `/metrics` requests were verified.
 
@@ -32,7 +32,9 @@ Completed:
   XGBoost regressor comparison is available at `scripts/compare_xgboost_regressor.py`.
 - The API returns confidence and local feature explanations, using SHAP when installed.
 - The API exposes Prometheus-compatible `/metrics` output.
-- CloudWatch captures the running container logs.
+- CloudWatch captures the running API container logs.
+- The live EC2 host runs resource-limited Prometheus and Grafana containers with a
+  provisioned Loan Approval API dashboard.
 - `scripts/generate_local_drift_report.py` provides the Evidently drift-report path.
 - `scripts/check_drift.py` calculates PSI drift and the scheduled workflow gates retraining.
 - The deployed API writes real prediction inputs to the private S3 production-events
