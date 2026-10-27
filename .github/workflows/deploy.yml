@@ -80,7 +80,8 @@ jobs:
             --rawfile prometheus monitoring/prometheus.ec2.yml \
             --rawfile dashboard_provider monitoring/grafana/provisioning/dashboards/dashboard.yml \
             --rawfile datasource_provider monitoring/grafana/provisioning/datasources/prometheus.yml \
-            --rawfile dashboard monitoring/grafana/dashboards/loan-api.json '{
+            --rawfile dashboard monitoring/grafana/dashboards/loan-api.json \
+            --rawfile proxy monitoring/nginx.conf '{
             commands: [
               "set -euo pipefail",
               "REGION=ap-south-1",
@@ -90,6 +91,7 @@ jobs:
               ("DASHBOARD_PROVIDER=" + ($dashboard_provider | @sh)),
               ("DATASOURCE_PROVIDER=" + ($datasource_provider | @sh)),
               ("DASHBOARD=" + ($dashboard | @sh)),
+              ("PROXY_CONFIG=" + ($proxy | @sh)),
               "aws ecr get-login-password --region \"$REGION\" | docker login --username AWS --password-stdin 049681811107.dkr.ecr.ap-south-1.amazonaws.com",
               "docker pull \"$IMAGE_URI\"",
               "docker network inspect loan-approval-net >/dev/null 2>&1 || docker network create loan-approval-net",
@@ -99,21 +101,25 @@ jobs:
               "printf '%s' \"$DASHBOARD_PROVIDER\" > /opt/loan-approval-monitoring/grafana/provisioning/dashboards/dashboard.yml",
               "printf '%s' \"$DATASOURCE_PROVIDER\" > /opt/loan-approval-monitoring/grafana/provisioning/datasources/prometheus.yml",
               "printf '%s' \"$DASHBOARD\" > /opt/loan-approval-monitoring/grafana/dashboards/loan-api.json",
+              "printf '%s' \"$PROXY_CONFIG\" > /opt/loan-approval-monitoring/nginx.conf",
               "docker rm -f loan-approval-api || true",
-              "docker run --detach --name loan-approval-api --restart unless-stopped --network loan-approval-net --publish 80:8005 --env MLOPS_UPLOAD_PREDICTIONS=false --env MLOPS_PRODUCTION_LOG_ENABLED=true --env MLOPS_PRODUCTION_BUCKET=loan-approval-mlops-049681811107-ap-south-1 --env MLOPS_PRODUCTION_PREFIX=production/predictions --env MLOPS_ALLOWED_ORIGINS='*' --log-driver=awslogs --log-opt awslogs-region=ap-south-1 --log-opt awslogs-group=/mlops/loan-approval --log-opt awslogs-create-group=false --log-opt awslogs-stream=loan-api \"$IMAGE_URI\"",
+              "docker run --detach --name loan-approval-api --restart unless-stopped --network loan-approval-net --publish 127.0.0.1:8005:8005 --env MLOPS_UPLOAD_PREDICTIONS=false --env MLOPS_PRODUCTION_LOG_ENABLED=true --env MLOPS_PRODUCTION_BUCKET=loan-approval-mlops-049681811107-ap-south-1 --env MLOPS_PRODUCTION_PREFIX=production/predictions --env MLOPS_ALLOWED_ORIGINS='*' --log-driver=awslogs --log-opt awslogs-region=ap-south-1 --log-opt awslogs-group=/mlops/loan-approval --log-opt awslogs-create-group=false --log-opt awslogs-stream=loan-api \"$IMAGE_URI\"",
               "docker image ls 049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops --format '{{.Repository}}:{{.Tag}}' | grep '^049681811107.dkr.ecr.ap-south-1.amazonaws.com/loan-approval-mlops:release-' | grep -v \"^$IMAGE_URI$\" | xargs -r docker image rm || true",
               "docker image prune -f",
               "docker pull prom/prometheus:v2.53.0",
               "docker pull grafana/grafana:11.1.0",
+              "docker pull nginx:1.27-alpine",
               "docker rm -f loan-prometheus loan-grafana || true",
+              "docker rm -f loan-approval-proxy || true",
               "docker volume create loan-prometheus-data >/dev/null",
               "docker volume create loan-grafana-data >/dev/null",
-              "docker run --detach --name loan-prometheus --restart unless-stopped --network loan-approval-net --publish 127.0.0.1:9090:9090 --memory 160m --cpus 0.35 --volume loan-prometheus-data:/prometheus --volume /opt/loan-approval-monitoring/prometheus.ec2.yml:/etc/prometheus/prometheus.yml:ro prom/prometheus:v2.53.0 --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus",
-              "docker run --detach --name loan-grafana --restart unless-stopped --network loan-approval-net --publish 3000:3000 --memory 220m --cpus 0.35 --env GF_AUTH_ANONYMOUS_ENABLED=false --env GF_SECURITY_ADMIN_USER=admin --env GF_SECURITY_ADMIN_PASSWORD=change-me-on-first-login --env GF_USERS_ALLOW_SIGN_UP=false --volume loan-grafana-data:/var/lib/grafana --volume /opt/loan-approval-monitoring/grafana/provisioning:/etc/grafana/provisioning:ro --volume /opt/loan-approval-monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro grafana/grafana:11.1.0",
+              "docker run --detach --name loan-prometheus --restart unless-stopped --network loan-approval-net --network-alias prometheus --publish 127.0.0.1:9090:9090 --memory 160m --cpus 0.35 --volume loan-prometheus-data:/prometheus --volume /opt/loan-approval-monitoring/prometheus.ec2.yml:/etc/prometheus/prometheus.yml:ro prom/prometheus:v2.53.0 --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus",
+              "docker run --detach --name loan-grafana --restart unless-stopped --network loan-approval-net --publish 127.0.0.1:3000:3000 --memory 220m --cpus 0.35 --env GF_AUTH_ANONYMOUS_ENABLED=false --env GF_SECURITY_ADMIN_USER=admin --env GF_SECURITY_ADMIN_PASSWORD=change-me-on-first-login --env GF_USERS_ALLOW_SIGN_UP=false --env GF_SERVER_DOMAIN=43.205.216.66 --env GF_SERVER_PROTOCOL=http --env GF_SERVER_ROOT_URL=http://43.205.216.66/grafana/ --env GF_SERVER_SERVE_FROM_SUB_PATH=true --volume loan-grafana-data:/var/lib/grafana --volume /opt/loan-approval-monitoring/grafana/provisioning:/etc/grafana/provisioning:ro --volume /opt/loan-approval-monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro grafana/grafana:11.1.0",
+              "docker run --detach --name loan-approval-proxy --restart unless-stopped --network loan-approval-net --publish 80:80 --memory 64m --cpus 0.15 --volume /opt/loan-approval-monitoring/nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:1.27-alpine",
               "sleep 8",
               "curl --fail --silent --show-error http://127.0.0.1/health",
               "curl --fail --silent --show-error http://127.0.0.1/ready",
-              "curl --fail --silent --show-error http://127.0.0.1:3000/api/health",
+              "curl --fail --silent --show-error http://127.0.0.1/grafana/api/health",
               "docker inspect loan-approval-api --format '{{.Config.Image}}'"
             ]
           }' > /tmp/loan-approval-deploy-commands.json

@@ -14,7 +14,7 @@ The current target region is `ap-south-1`.
 - ECR tags are immutable and the lifecycle policy retains at most three `release-*` images.
 - The manual GitHub release workflow expects the repository secret `AWS_ROLE_TO_ASSUME` for GitHub OIDC and deploys through SSM.
 
-These resources are intentionally small. The ECR, S3, CloudWatch, IAM, security group, and EC2 resources are configured and the API has passed live health, readiness, prediction, `/docs`, and `/metrics` checks. The deployment also starts resource-limited `loan-prometheus` and `loan-grafana` containers with persistent Docker volumes. Grafana is available at `http://<EC2_PUBLIC_IP>:3000` only from the configured client IP, and its provisioned dashboard reads the API over the private Docker network.
+These resources are intentionally small. The ECR, S3, CloudWatch, IAM, security group, and EC2 resources are configured and the API has passed live health, readiness, prediction, `/docs`, and `/metrics` checks. The deployment also starts resource-limited `loan-prometheus` and `loan-grafana` containers with persistent Docker volumes. Nginx exposes the API at the EC2 port 80 and Grafana at `http://<EC2_PUBLIC_IP>/grafana/`, so the viva does not depend on direct access to a separate nonstandard port. Grafana reads the API over the private Docker network.
 
 Prediction inputs for drift are written as JSON events under the private S3 prefix
 `production/predictions/`. The EC2 role can write only that prefix, while the GitHub
