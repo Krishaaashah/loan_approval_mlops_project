@@ -6,6 +6,7 @@ import os
 import joblib
 import mlflow
 import mlflow.sklearn
+from mlflow.tracking import MlflowClient
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -82,11 +83,15 @@ def calculate_metrics(y_true, y_pred, y_probability=None):
 
 def train_model(max_evals=5):
     X_train, y_train, X_test, y_test = load_training_data()
+    training_run_id = None
+    registered_version = None
     mlflow.set_tracking_uri(config.TRACKING_URI)
+    mlflow.set_registry_uri(config.REGISTRY_URI)
     mlflow.set_experiment(config.EXPERIMENT_NAME)
     mlflow.xgboost.autolog(log_models=False)
 
     with mlflow.start_run(run_name="hyperparameter-search"):
+        training_run_id = mlflow.active_run().info.run_id
 
         def objective(params):
             model = build_pipeline(params)
@@ -130,15 +135,46 @@ def train_model(max_evals=5):
         mlflow.log_metrics({f"best_{key}": value for key, value in best_metrics.items()})
         model_info = mlflow.sklearn.log_model(best_model, config.MODEL_NAME)
         if config.REGISTERED_MODEL_NAME:
-            mlflow.register_model(
+            registered_version = mlflow.register_model(
                 model_info.model_uri,
                 config.REGISTERED_MODEL_NAME,
+            )
+            registry_client = MlflowClient(registry_uri=config.REGISTRY_URI)
+            registry_client.set_registered_model_alias(
+                config.REGISTERED_MODEL_NAME,
+                config.MODEL_ALIAS,
+                registered_version.version,
+            )
+            registry_client.set_model_version_tag(
+                config.REGISTERED_MODEL_NAME,
+                registered_version.version,
+                "selection_metric",
+                f"f1_score={best_metrics['f1_score']:.6f}",
             )
 
     os.makedirs(config.ARTIFACTS_DIR, exist_ok=True)
     joblib.dump(best_model, config.MODEL_PATH)
     with open(config.BEST_PARAMS_PATH, "w", encoding="utf-8") as file:
         json.dump(best_params, file, indent=2)
+    with open(config.MODEL_REGISTRY_METADATA_PATH, "w", encoding="utf-8") as file:
+        json.dump(
+            {
+                "name": config.REGISTERED_MODEL_NAME,
+                "alias": config.MODEL_ALIAS,
+                "version": str(registered_version.version) if registered_version else None,
+                "run_id": training_run_id,
+                "registry_uri": config.REGISTRY_URI,
+                "model_uri": (
+                    f"models:/{config.REGISTERED_MODEL_NAME}@{config.MODEL_ALIAS}"
+                    if registered_version
+                    else None
+                ),
+                "selection_metric": "f1_score",
+                "selection_value": best_metrics["f1_score"],
+            },
+            file,
+            indent=2,
+        )
 
     return best_metrics
 

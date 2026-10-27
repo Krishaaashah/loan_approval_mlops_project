@@ -77,10 +77,15 @@ The report compares `artifacts/train.csv` with `artifacts/test.csv` and writes
 Copy `.env.example` to `.env` for local defaults. Important values are read from
 environment variables:
 
-- `MLFLOW_TRACKING_URI` selects the local file store or a later remote MLflow server.
+- `MLFLOW_TRACKING_URI` selects the MLflow tracking backend. The default local backend
+  is SQLite at `artifacts/mlflow.db`, which also supports the model registry.
+- `MLFLOW_REGISTRY_URI` selects the model registry backend; it defaults to the tracking
+  backend.
 - `MODEL_PATH` selects the persisted local model artifact.
 - `MODEL_URI` can point directly to a pinned MLflow model version or alias.
-- `MLFLOW_REGISTERED_MODEL_NAME` optionally registers the selected model in MLflow.
+- `MLFLOW_REGISTERED_MODEL_NAME` names the registered champion model; the default is
+  `LoanApprovalChampion`.
+- `MLFLOW_MODEL_ALIAS` names the production alias; the default is `champion`.
 - `MLOPS_S3_BUCKET` and `MLOPS_DRIFT_PREFIX` configure optional S3-based monitoring.
 - `MLOPS_ALLOWED_ORIGINS` controls permitted browser origins.
 - `MLOPS_UPLOAD_PREDICTIONS` stays `false` locally and enables S3 uploads only in the cloud deployment.
@@ -120,6 +125,26 @@ the current resource identifiers are in `DEPLOYMENT_RUNBOOK.md`.
 The release and rollback procedure is documented in `DEPLOYMENT_RUNBOOK.md`. The
 Kubernetes manifest remains a portable alternative with an immutable image-tag
 placeholder and readiness/liveness probes.
+
+## MLflow model registry
+
+Training registers the selected champion model as `LoanApprovalChampion` and moves
+the `champion` alias to the newly selected version. The generated
+`artifacts/model_registry.json` records the registered version, run ID, registry URI,
+and the alias-based model URI.
+
+To inspect the experiment and registry locally, install the project requirements and
+start the MLflow server from the repository root:
+
+```powershell
+mlflow server --backend-store-uri sqlite:///artifacts/mlflow.db `
+  --default-artifact-root ./artifacts/mlruns --host 127.0.0.1 --port 5000
+```
+
+Then open `http://127.0.0.1:5000`, run `dvc repro`, and select the
+`LoanApprovalChampion` model. The production alias is `champion`; this keeps the
+deployed API pinned to its immutable `model.joblib` unless `MODEL_URI` is explicitly
+configured to load `models:/LoanApprovalChampion@champion`.
 
 ## Monitoring and Responsible AI
 

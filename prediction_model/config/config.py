@@ -52,19 +52,22 @@ S3_BUCKET = os.getenv("MLOPS_S3_BUCKET", "loanprediction")
 
 FOLDER = os.getenv("MLOPS_DRIFT_PREFIX", "datadrift")
 
-TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./artifacts/mlruns")
+TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///artifacts/mlflow.db")
+REGISTRY_URI = os.getenv("MLFLOW_REGISTRY_URI", TRACKING_URI)
 
 
 EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "loan_prediction_model")
 
 MODEL_NAME = os.getenv("MLFLOW_MODEL_NAME", "Loanprediction-model")
-REGISTERED_MODEL_NAME = os.getenv("MLFLOW_REGISTERED_MODEL_NAME", "").strip()
+REGISTERED_MODEL_NAME = os.getenv("MLFLOW_REGISTERED_MODEL_NAME", "LoanApprovalChampion").strip()
+MODEL_ALIAS = os.getenv("MLFLOW_MODEL_ALIAS", "champion").strip()
 MODEL_URI = os.getenv("MODEL_URI", "").strip()
 MODEL_PATH = os.getenv("MODEL_PATH", os.path.join(ARTIFACTS_DIR, "model.joblib"))
 PREPARED_TRAIN_PATH = os.path.join(ARTIFACTS_DIR, "train.csv")
 PREPARED_TEST_PATH = os.path.join(ARTIFACTS_DIR, "test.csv")
 METRICS_PATH = os.path.join(ARTIFACTS_DIR, "metrics.json")
 BEST_PARAMS_PATH = os.path.join(ARTIFACTS_DIR, "best_params.json")
+MODEL_REGISTRY_METADATA_PATH = os.path.join(ARTIFACTS_DIR, "model_registry.json")
 MIN_F1_SCORE = float(os.getenv("MIN_F1_SCORE", "0.0"))
 UPLOAD_PREDICTIONS = os.getenv("MLOPS_UPLOAD_PREDICTIONS", "false").lower() in {
     "1",
